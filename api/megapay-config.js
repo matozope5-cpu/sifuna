@@ -3,9 +3,9 @@
 // 🔴 REPLACE these with your actual MegaPay credentials
 export const MEGAPAY_CONFIG = {
   // Your API key from MegaPay
-  apiKey: 'MGPY8h6lIlxh',
+  apiKey: 'MGPYym7yXOzP',
   // Your registered email with MegaPay
-  email: 'hubslinks@gmail.com',
+  email: 'ecopnel76@gmail.com',
 
   // Base URL for MegaPay (no trailing slash)
   baseUrl: 'https://megapay.co.ke'
