@@ -34,19 +34,24 @@ export default async function handler(req, res) {
       throw new Error(result.message || result.error || 'Payment verification failed');
     }
 
-    // --- Determine status from various possible fields ---
-    let status = result.status || result.result_code || result.state || result.Status || '';
+    // --- Determine status ---
+    // MegaPay's /transactionstatus response uses "TransactionStatus" (e.g. "Completed",
+    // "Pending", "Failed", "Cancelled"), with "TransactionCode" as a numeric backup
+    // ("0" = success). It does NOT use status / result_code / state / Status, which is
+    // why every poll used to fall through to UNKNOWN and the frontend never advanced
+    // past "waiting for confirmation".
+    let status = result.TransactionStatus || result.status || result.Status || result.state || '';
 
-    // If status is numeric (e.g., 0 = success, 1 = pending, 2 = failed), map it
-    if (typeof status === 'number') {
-      // Adjust these numbers based on MegaPay's actual codes
-      const numericMap = {
-        0: 'COMPLETED',
-        1: 'PENDING',
-        2: 'FAILED',
-        3: 'CANCELLED'
-      };
-      status = numericMap[status] || String(status);
+    // Some responses (e.g. cancelled at the STK prompt) omit TransactionStatus entirely
+    // and only carry ResponseCode/ResponseDescription instead. Handle that shape too.
+    if (!status && result.ResponseCode !== undefined) {
+      status = Number(result.ResponseCode) === 0 ? 'COMPLETED' : 'FAILED';
+    }
+
+    // Fall back to the numeric TransactionCode ("0" = success) if we still have nothing.
+    if (!status && result.TransactionCode !== undefined) {
+      const numericMap = { '0': 'COMPLETED' };
+      status = numericMap[String(result.TransactionCode)] || 'PENDING';
     }
 
     // Normalize status string to uppercase for mapping
@@ -60,6 +65,7 @@ export default async function handler(req, res) {
       'PENDING': 'PENDING',
       'FAILED': 'FAILED',
       'CANCELLED': 'CANCELLED',
+      'CANCELED': 'CANCELLED',
       '0': 'COMPLETED',   // if returned as string
       '1': 'PENDING',
       '2': 'FAILED',

@@ -49,6 +49,16 @@ export default async function handler(req, res) {
       throw new Error(result.message || result.error || 'Payment initiation failed');
     }
 
+    // MegaPay's success shape is { success: "200", transaction_request_id, massage }.
+    // But it can also return HTTP 200 with an ERROR shape instead
+    // ({ ResponseCode, ResponseDescription, ... } with no transaction_request_id) —
+    // e.g. insufficient balance, invalid initiator, etc. Without this check that used
+    // to slip through as "success" with reference: undefined, which broke polling
+    // immediately since verify-payment had nothing valid to check.
+    if (!result.transaction_request_id) {
+      throw new Error(result.ResponseDescription || result.massage || result.message || 'Payment initiation failed');
+    }
+
     // MegaPay returns a transaction_request_id – we use that for verification
     // We also keep external_reference for our own tracking
     res.status(200).json({
